@@ -14,7 +14,7 @@ import "./External/IERC20.sol";
 /* @title Staking Pool Contract
  * Open Zeppelin Pausable  */
 
-contract Stakingpool is Initializable,ReentrancyGuardUpgradeable,PausableUpgradeable{
+contract Stakingpool1 is stakingpool{
   
   using SafeMathUpgradeable for uint;
   
@@ -108,9 +108,10 @@ contract Stakingpool is Initializable,ReentrancyGuardUpgradeable,PausableUpgrade
      mchtoken = IERC20(_mchtoken);
      mcftoken = IERC20Upgradeable(_mcftoken);
      owner = msg.sender;
-     StakePeriod = 15 days;
+     StakePeriod = 10 days;
     
     }
+
 
   /************************ USER MANAGEMENT ***********************/
 
