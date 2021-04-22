@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+   // SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.8.0;
 
@@ -11,32 +11,25 @@ import "./External/OwnableUpgradeable.sol";
 import "./External/IERC20.sol";
 
 
-
-import {MCHToken} from "./MCHToken.sol";
-import {MCFToken} from"./MCFToken.sol";
-
-
-
 /* @title Staking Pool Contract
  * Open Zeppelin Pausable  */
 
-contract Stakingpool1 is stakingpool{
+contract Stakingpool is Initializable,ReentrancyGuardUpgradeable,PausableUpgradeable{
   
   using SafeMathUpgradeable for uint;
   
-  MCHToken public mchtoken;
-  MCFToken public mcftoken;
   uint public StakePeriod;
   
-  
-  
-   address private owner;
+  address private owner;
+
+  IERC20 mchtoken;
+  IERC20Upgradeable mcftoken;
   
   
  /** @dev track total current stake yields of a user */
    mapping(address => uint) public currentstakeyields;
    
-   /* @dev track Stakedbalances of user/
+   /** @dev track Stakedbalances of user*/
   mapping(address => uint) public stakedBalances;
   
   /** @dev track StakedShares of user */
@@ -69,8 +62,6 @@ contract Stakingpool1 is stakingpool{
   
    /** @dev track index by address added to users */
   mapping(address => uint) private userIndex;
-
-  uint NoUsers;
   
  
  /** @dev trigger notification of staked amount
@@ -89,6 +80,8 @@ contract Stakingpool1 is stakingpool{
   // @dev trigger notification of claimed amount
   event Notifyclaimed(address sender,uint Balance);
   
+  mapping(address=> uint) internal creationTime;
+  
  
   modifier onlyOwner {
         require(
@@ -98,30 +91,28 @@ contract Stakingpool1 is stakingpool{
         _;
     }
   
-    /**
+     /**
      * @dev Throws if called before stakingperiod
      */
     modifier onlyAfter() {
         
-       require(block.timestamp >= StakePeriod ,"StakePeriod not completed");
+       require(block.timestamp > StakePeriod ,"StakePeriod not completed");
         _;
     }
-
+   
 
  // @dev contract Initializable
     
-    function Initialize (MCHToken _mchtoken, MCFToken _mcftoken) public initializer {
+    function Initialize (address _mchtoken, address _mcftoken) public initializer {
     
-     mchtoken = _mchtoken;
-     mcftoken = _mcftoken;
+     mchtoken = IERC20(_mchtoken);
+     mcftoken = IERC20Upgradeable(_mcftoken);
      owner = msg.sender;
-     StakePeriod = block.timestamp + 10 days;
-     
-     
+     StakePeriod = 15 days;
     
-  }
+    }
 
- /******** USER MANAGEMENT *********/
+  /************************ USER MANAGEMENT ***********************/
 
   /** @dev test if user is in current user list
     * @param user address of user to test if in list
@@ -162,7 +153,7 @@ contract Stakingpool1 is stakingpool{
            users.pop();
        }
    }
-  /******** USER MANAGEMENT *********/
+  /************************ USER MANAGEMENT ***********************/
 
   
    /** @dev stake funds to Contract
@@ -178,9 +169,6 @@ contract Stakingpool1 is stakingpool{
        stakedBalances[msg.sender] = stakedBalances[msg.sender].add(amount);
        
        
-    // track total staked
-    totalStakedMcH = totalStakedMcH.add(amount);
-    totalStakedamount =  totalStakedMcH.mul(MCHValue);
     uint shares = (stakedBalances[msg.sender].mul(100)).div(totalStakedMcH.add(amount));
     stakedShares[msg.sender] = stakedShares[msg.sender].add(shares);
     
@@ -190,7 +178,7 @@ contract Stakingpool1 is stakingpool{
 
   /** @dev unstake funds from Pool
     */
-   function unstake(uint amount) external onlyAfter() whenNotPaused {
+   function unstake(uint amount) external whenNotPaused onlyAfter(){
     
     require(stakedBalances[msg.sender] >= amount, "unstaking balance cannot be 0");
 
@@ -200,21 +188,17 @@ contract Stakingpool1 is stakingpool{
     // Reset staking balance
     stakedBalances[msg.sender] = stakedBalances[msg.sender].sub(amount);
     
-    // track total staked
-    totalStakedMcH = totalStakedMcH.sub(amount);
-    totalStakedamount =  totalStakedMcH.mul(MCHValue);
     uint shares = (stakedBalances[msg.sender].mul(100)).div(totalStakedMcH.sub(amount));
     stakedShares[msg.sender] = stakedShares[msg.sender].sub(shares);
     
     if(stakedBalances[msg.sender] == 0) removeUser(msg.sender);
-
 
     emit NotifyUnStaked(msg.sender, amount);
   
    }
 
   
-    function calcRewards(address user) public onlyAfter() view returns(uint) {
+    function calcRewards(address user) public  onlyAfter() view  returns(uint) {
      
      uint mcftokensEmitted = mcftoken.totalSupply();
      return (stakedShares[user].mul(mcftokensEmitted)).div(100);
@@ -234,7 +218,7 @@ contract Stakingpool1 is stakingpool{
       }
    }
 
-    function Harvest() external whenNotPaused onlyAfter() nonReentrant() {
+    function Harvest() external whenNotPaused nonReentrant() onlyAfter() {
         
         uint256 Balance = claimable[msg.sender];
        // Require amount greater than 0
@@ -248,7 +232,7 @@ contract Stakingpool1 is stakingpool{
     
     }
   
-   function calcROI() external onlyOwner() onlyAfter() {
+   function calcROI() external onlyOwner()  onlyAfter() {
      
       for (uint256 i = 0; i < users.length; i += 1) {
         address user = users[i];
@@ -260,3 +244,6 @@ contract Stakingpool1 is stakingpool{
     }
 
 }
+
+        
+   
